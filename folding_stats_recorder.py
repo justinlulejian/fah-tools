@@ -12,12 +12,13 @@ Note: On successive runs script will append data if the same record_location is
   specified.
 """
 # pylint: disable=fixme
-# TODO(jlulejian): unit tests.
+# TODO(justinlulejian): unit tests.
 
 import bz2
 import click
 import collections
 import csv
+import datetime
 import getpass
 import logging
 import os
@@ -72,7 +73,7 @@ def find_specific_user_data(user_data_rows, target_name):
       'user_data_tuple',
       ['username', 'new_credits', 'sum_workunits', 'team_num'],
        verbose=False))
-  # TODO(jlulejian): Data appears ordered by point rank. See if can devise a
+  # TODO(justinlulejian): Data appears ordered by point rank. See if can devise
   # a more efficient way to search data for user_name.
   for user_data_row in user_data_rows:
     user_name = user_data_row.split(None, 1)[0]
@@ -85,9 +86,9 @@ def record_user_data_to_csv(user_data, record_loc):
   """Record user data to a CSV file, creates the file if it doesn't exist yet.
 
   E.g.
-  username,new_credits,sum_workunits,team_num
-  Justin_N_Lulejian,13224707,2291,0
-  Justin_N_Lulejian,13226388,2292,0
+  time,username,new_credits,sum_workunits,team_num
+  12/15/2016 22:26,Justin_N_Lulejian,13224707,2291,0
+  12/15/2016 23:26,Justin_N_Lulejian,13226388,2292,0
 
   Args:
     user_data: A namedtuple object containing the data for the user. Should have
@@ -96,29 +97,28 @@ def record_user_data_to_csv(user_data, record_loc):
     record_loc: A string of that path to a desired filename to record the CSV
     of F@H user data.
   """
-
-  #TODO(jlulejian): Dynamically generate these from the namedtuple.
-  fieldnames = ['username', 'new_credits', 'sum_workunits', 'team_num']
+  fieldnames = ['time'] + list(user_data._fields)  # pylint: disable=protected-access
+  # TODO(justinlulejian): Calculate useful metrics (e.g. #/% diff values) since
+  # last entry.
+  user_data_row_dict = {
+  'time': datetime.datetime.now().strftime('%m/%d/%Y %H:%M'),
+  'username': user_data.username, 'new_credits': user_data.new_credits,
+  'sum_workunits': user_data.sum_workunits,
+  'team_num': user_data.team_num}
   if os.path.isfile(record_loc):
     logging.debug('File: %s exists, appending to file.', record_loc)
     with open(record_loc, 'a+b') as record_file:
       user_data_writer = csv.DictWriter(record_file, fieldnames=fieldnames)
-      # TODO(jlulejian): Dynamically generate keys of dict from fieldnames.
-      # TODO(jlulejian): Figure out how to deduplicate the user_data_writer
+      # TODO(justinlulejian): Dynamically generate keys of dict from fieldnames.
+      # TODO(justinlulejian): Figure out how to deduplicate the user_data_writer
       # lines.
-      user_data_writer.writerow(
-        {'username': user_data.username, 'new_credits': user_data.new_credits,
-         'sum_workunits': user_data.sum_workunits,
-         'team_num': user_data.team_num})
+      user_data_writer.writerow(user_data_row_dict)
   else:
     logging.debug('File: %s does not exist, creating.', record_loc)
     with open(record_loc, 'w+b') as record_file:
       user_data_writer = csv.DictWriter(record_file, fieldnames=fieldnames)
       user_data_writer.writeheader()
-      user_data_writer.writerow(
-        {'username': user_data.username, 'new_credits': user_data.new_credits,
-         'sum_workunits': user_data.sum_workunits,
-         'team_num': user_data.team_num})
+      user_data_writer.writerow(user_data_row_dict)
 
 
 @click.command()
