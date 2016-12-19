@@ -7,5 +7,8 @@ Example usage:
   folding_stats_recorder --username='PS3EdOlkkola' --record_location=/home/john
     --userdata_location='http://fah-web.stanford.edu/daily_user_summary.txt.bz2'
 
+Requires: 
+click Python library (http://click.pocoo.org/5/): pip install click
+
 Note: On successive runs script will append data if the same record_location is
   specified.
