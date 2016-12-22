@@ -18,6 +18,7 @@ import bz2
 import click
 import collections
 import csv
+import datetime
 import getpass
 import logging
 import os
@@ -74,20 +75,24 @@ def find_specific_user_data(user_data_rows, target_name):
        verbose=False))
   # TODO(jlulejian): Data appears ordered by point rank. See if can devise a
   # a more efficient way to search data for user_name.
-  for user_data_row in user_data_rows:
+  # First two rows are date and header col vals.
+  for user_data_row in user_data_rows[2:]:
     user_name = user_data_row.split(None, 1)[0]
     if user_name == target_name:
       logging.debug('Found user data for: %s', target_name)
       return user_data_tuple(*user_data_row.split())
+  raise click.BadParameter(
+    'F@H donator username could not be found, please specify an existing '
+    'name.')
 
 
 def record_user_data_to_csv(user_data, record_loc):
   """Record user data to a CSV file, creates the file if it doesn't exist yet.
 
   E.g.
-  username,new_credits,sum_workunits,team_num
-  Justin_N_Lulejian,13224707,2291,0
-  Justin_N_Lulejian,13226388,2292,0
+  time,username,new_credits,sum_workunits,team_num
+  12/15/2016 22:26,Justin_N_Lulejian,13224707,2291,0
+  12/15/2016 23:26,Justin_N_Lulejian,13226388,2292,0
 
   Args:
     user_data: A namedtuple object containing the data for the user. Should have
@@ -96,44 +101,61 @@ def record_user_data_to_csv(user_data, record_loc):
     record_loc: A string of that path to a desired filename to record the CSV
     of F@H user data.
   """
-
-  #TODO(jlulejian): Dynamically generate these from the namedtuple.
-  fieldnames = ['username', 'new_credits', 'sum_workunits', 'team_num']
+  fieldnames = ['time'] + list(user_data._fields)  # pylint: disable=protected-access
+  # TODO(justinlulejian): Calculate useful metrics (e.g. #/% diff values) since
+  # last entry.
+  user_data_row_dict = {
+  'time': datetime.datetime.now().strftime('%m/%d/%Y %H:%M'),
+  'username': user_data.username, 'new_credits': user_data.new_credits,
+  'sum_workunits': user_data.sum_workunits,
+  'team_num': user_data.team_num}
   if os.path.isfile(record_loc):
     logging.debug('File: %s exists, appending to file.', record_loc)
     with open(record_loc, 'a+b') as record_file:
       user_data_writer = csv.DictWriter(record_file, fieldnames=fieldnames)
-      # TODO(jlulejian): Dynamically generate keys of dict from fieldnames.
-      # TODO(jlulejian): Figure out how to deduplicate the user_data_writer
+      # TODO(justinlulejian): Dynamically generate keys of dict from fieldnames.
+      # TODO(justinlulejian): Figure out how to deduplicate the user_data_writer
       # lines.
-      user_data_writer.writerow(
-        {'username': user_data.username, 'new_credits': user_data.new_credits,
-         'sum_workunits': user_data.sum_workunits,
-         'team_num': user_data.team_num})
+      user_data_writer.writerow(user_data_row_dict)
   else:
     logging.debug('File: %s does not exist, creating.', record_loc)
     with open(record_loc, 'w+b') as record_file:
       user_data_writer = csv.DictWriter(record_file, fieldnames=fieldnames)
       user_data_writer.writeheader()
-      user_data_writer.writerow(
-        {'username': user_data.username, 'new_credits': user_data.new_credits,
-         'sum_workunits': user_data.sum_workunits,
-         'team_num': user_data.team_num})
+      user_data_writer.writerow(user_data_row_dict)
+
+
+def validate_record_location(*args):
+  """Confirm location specified for record data is writable."""
+  value = args[2]
+  if not os.access(value, os.W_OK):
+    raise click.BadParameter('Could not obtain write access to %s.' % value)
+  return value
+
+
+def validate_fah_username(*args):
+  """Ensure a username was specified."""
+  value = args[2]
+  param = args[1]
+  if not value:
+    raise click.BadParameter('No %s was provided' % param.human_readable_name)
+  return value
 
 
 @click.command()
 @click.option(
   '--record_location',
    default='/home/%s/%s' % (getpass.getuser(), 'fahuserdata.csv'),
-   help='Where to store CSV of user data.', show_default=True)
+   help='Where to store CSV of user data.', callback=validate_record_location,
+   show_default=True)
 @click.option(
   '--userdata_location',
    default='http://fah-web.stanford.edu/daily_user_summary.txt.bz2',
    help='Where to store CSV of user data.', show_default=True)
 @click.option(
   '--username',
-   default='anonymous',
-   help='The donator username to get stats for.', show_default=True)
+   default=None, help='The donator username to get stats for.',
+   callback=validate_fah_username, show_default=True)
 @click.option(
   '--verbose',
    default=False,
@@ -163,11 +185,11 @@ def record_folding_at_home_stats(
   logging.info('Searching for user: %s in user data.', username)
   target_user_data = (
     find_specific_user_data(all_user_data, username.encode('utf8')))
-  logging.info('Found user data for user.')
+  logging.info('Found user data for user: %s.', username)
   record_user_data_to_csv(target_user_data, record_location)
   logging.info('Recorded data for user to: %s.', record_location)
 
 
 if __name__ == '__main__':
-  # click provides arguments to function through decorators.
+  # Click provides arguments to function through decorators.
   record_folding_at_home_stats()  # pylint: disable=no-value-for-parameter
