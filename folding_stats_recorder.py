@@ -75,6 +75,7 @@ def find_specific_user_data(user_data_rows, target_name):
        verbose=False))
   # TODO(jlulejian): Data appears ordered by point rank. See if can devise a
   # a more efficient way to search data for user_name.
+  # First two rows are date and header col vals.
   for user_data_row in user_data_rows[2:]:
     user_name = user_data_row.split(None, 1)[0]
     if user_name == target_name:
@@ -124,12 +125,18 @@ def record_user_data_to_csv(user_data, record_loc):
       user_data_writer.writerow(user_data_row_dict)
 
 
-def validate_record_location(ctx, param, value):
+def validate_record_location(*args):
+  """Confirm location specified for record data is writable."""
+  value = args[2]
   if not os.access(value, os.W_OK):
     raise click.BadParameter('Could not obtain write access to %s.' % value)
   return value
 
-def validate_fah_username(ctx, param, value):
+
+def validate_fah_username(*args):
+  """Ensure a username was specified."""
+  value = args[2]
+  param = args[1]
   if not value:
     raise click.BadParameter('No %s was provided' % param.human_readable_name)
   return value
@@ -175,7 +182,7 @@ def record_folding_at_home_stats(
   all_user_data = (
     decompress_userdata_to_list(
       retrieve_user_data_file(userdata_location)))
-  logging.info('Searching for user: %s in user data.', username) 
+  logging.info('Searching for user: %s in user data.', username)
   target_user_data = (
     find_specific_user_data(all_user_data, username.encode('utf8')))
   logging.info('Found user data for user: %s.', username)
