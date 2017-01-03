@@ -13,6 +13,7 @@ Requires:
   click lib (http://click.pocoo.org/5/): pip install click
   requests lib (http://docs.python-requests.org/): pip install requests
 
+
 Note: On successive runs script will append data if the same record_location is
   specified.
 """
@@ -41,6 +42,7 @@ def retrieve_userdata_file_content(user_data_url):
     The binary content of the user data file retrieved.
   """
   logging.debug('Retrieving user data file from: %s', user_data_url)
+
   req_exc = requests.exceptions
   try:
     return requests.get(user_data_url.strip('\'')).content
@@ -59,6 +61,7 @@ def retrieve_userdata_file_content(user_data_url):
         'A generic error occured retrieving user data from: %s. Error: %s',
         user_data_url, error)
     sys.exit()
+
 
 def decompress_userdata_to_list(user_data_content):
   """Decompress the user data file into a string, and convert to a list.
@@ -102,6 +105,7 @@ def find_specific_user_data(user_data_rows, target_name):
   # First two rows are date and header col vals.
   for user_data_row in user_data_rows[2:]:
     user_name = user_data_row.split(None, 1)[0]
+    # print 'user_name: %s' % user_name
     if user_name == target_name:
       logging.debug('Found user data for: %s', target_name)
       return user_data_tuple(*user_data_row.split())
@@ -156,6 +160,7 @@ def validate_fah_username(ctx, param, value):  # pylint: disable=unused-argument
   if not value:
     raise click.BadParameter('No %s was provided' % param.human_readable_name)
   return value
+
 
 
 def setup_cli_logging(verbose=None):
